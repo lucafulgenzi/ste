@@ -4,6 +4,9 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
 };
 use std::io::{self, Read, Write};
+use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyModifiers};
+
+use log::info;
 
 mod text_buffer;
 use crate::editor::text_buffer::Viewport;
@@ -33,46 +36,47 @@ impl Editor {
     pub fn launch(&mut self) {
         self.clear();
         enable_raw_mode().unwrap();
-        for b in io::stdin().bytes() {
-            let byte_char = b.unwrap();
-
-            match byte_char {
-                17 => break, // CTRL+Q close editor
-                13 | 10 => {
-                    // Enter
-                    self.buffer
-                        .content
-                        .insert_newline(self.buffer.cursor_row, self.buffer.cursor_col);
-                    self.buffer.cursor_row += 1;
-                    self.buffer.cursor_col = 0;
-                }
-                127 | 0 => {
-                    // Backspace
-                    if self.buffer.cursor_col > 0 {
-                        self.buffer.cursor_col -= 1;
-                        self.buffer.content.delete_char(
+        loop {
+            if let Ok(Event::Key(KeyEvent { code, modifiers, .. })) = read() {
+                match (code, modifiers) {
+                    (KeyCode::Char('q'), KeyModifiers::CONTROL) => {
+                        break;
+                    },
+                    (KeyCode::Enter, _) => {
+                        self.buffer
+                            .content
+                            .insert_newline(self.buffer.cursor_row, self.buffer.cursor_col);
+                        self.buffer.cursor_row += 1;
+                        self.buffer.cursor_col = 0;
+                    },
+                    (KeyCode::Backspace, _) => {
+                        if self.buffer.cursor_col > 0 {
+                            self.buffer.cursor_col -= 1;
+                            self.buffer.content.delete_char(
+                                self.buffer.cursor_row,
+                                self.buffer.cursor_col,
+                            );
+                        } else if self.buffer.cursor_row > 0 {
+                            let prev_line_len = self.buffer.content.line_len(self.buffer.cursor_row - 1);
+                            self.buffer.content.merge_lines(self.buffer.cursor_row - 1);
+                            self.buffer.cursor_row -= 1;
+                            self.buffer.cursor_col = prev_line_len;
+                        }
+                    },
+                    (KeyCode::Char(c), _) => {
+                        self.buffer.content.insert_char(
                             self.buffer.cursor_row,
                             self.buffer.cursor_col,
+                            c,
                         );
-                    } else if self.buffer.cursor_row > 0 {
-                        let prev_line_len = self.buffer.content.line_len(self.buffer.cursor_row - 1);
-                        self.buffer.content.merge_lines(self.buffer.cursor_row - 1);
-                        self.buffer.cursor_row -= 1;
-                        self.buffer.cursor_col = prev_line_len;
+                        self.buffer.cursor_col += 1;
                     }
+                    _ => {}
                 }
-                c if c >= 32 && c < 127 => {
-                    self.buffer.content.insert_char(
-                        self.buffer.cursor_row,
-                        self.buffer.cursor_col,
-                        c as char,
-                    );
-                    self.buffer.cursor_col += 1;
-                }
-                _ => {}
             }
             self.buffer_loop();
         }
+
         disable_raw_mode().unwrap();
     }
 
