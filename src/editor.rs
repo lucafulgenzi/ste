@@ -63,6 +63,39 @@ impl Editor {
                             self.buffer.cursor_col = prev_line_len;
                         }
                     },
+                    (KeyCode::Up, _) => {
+                        if self.buffer.cursor_row > 0 {
+                            let prev_line_len = self.buffer.content.line_len(self.buffer.cursor_row - 1);
+                            if self.buffer.cursor_col > prev_line_len {
+                                self.buffer.cursor_col = prev_line_len;
+                            }
+                            self.buffer.cursor_row -= 1;
+                        }
+                    }
+                    (KeyCode::Right, _) => {
+                        self.buffer.cursor_col += 1
+                    }
+                    (KeyCode::Down, _) => {
+                        let next_line_len = self.buffer.content.line_len(self.buffer.cursor_row + 1);
+                        if self.buffer.cursor_col > next_line_len {
+                            self.buffer.cursor_col = next_line_len;
+                        }
+                        self.buffer.cursor_row += 1;
+                    }
+                    (KeyCode::Left, _) => {
+                        if self.buffer.cursor_col > 0 {
+                            self.buffer.cursor_col -= 1
+                        }
+                    }
+                    (KeyCode::End, _) => {
+                        let current_line_len = self.buffer.content.line_len(self.buffer.cursor_row);
+                        if current_line_len > 0 {
+                            self.buffer.cursor_col = current_line_len;
+                        }
+                    }
+                    (KeyCode::Home, _) => {
+                        self.buffer.cursor_col = 0;
+                    }
                     (KeyCode::Char(c), _) => {
                         self.buffer.content.insert_char(
                             self.buffer.cursor_row,
