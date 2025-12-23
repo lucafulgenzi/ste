@@ -13,20 +13,7 @@ impl TextBuffer {
             lines: vec![Vec::new()],
         }
     }
-
-    pub fn get(&self, row: usize, col: usize) -> Option<char> {
-        self.lines.get(row)?.get(col).copied()
-    }
-
-    pub fn set(&mut self, row: usize, col: usize, ch: char) {
-        if let Some(line) = self.lines.get_mut(row) {
-            if col < line.len() {
-                line[col] = ch
-            } else if col == line.len() {
-                line.push(ch)
-            }
-        }
-    }
+    
 
     pub fn insert_char(&mut self, row: usize, col: usize, ch: char) {
         if ch == '\n' {
@@ -67,10 +54,6 @@ impl TextBuffer {
 
     pub fn no_more_lines(&self, row: usize) -> bool {
         self.lines.get(row).is_none()
-    }
-
-    pub fn rows(&self) -> &[Vec<char>] {
-        &self.lines
     }
 
     pub fn visible_rows(&self, viewport: &Viewport) -> &[Vec<char>] {

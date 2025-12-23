@@ -6,7 +6,7 @@ use crossterm::{
 };
 use std::fs;
 use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 
 mod text_buffer;
 use crate::editor::text_buffer::Viewport;
@@ -198,3 +198,4 @@ impl Editor {
         .expect("Couldn't save file");
     }
 }
+
