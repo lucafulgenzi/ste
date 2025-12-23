@@ -1,6 +1,5 @@
-
 pub struct TextBuffer {
-    lines: Vec<Vec<char>>
+    lines: Vec<Vec<char>>,
 }
 
 pub struct Viewport {
@@ -11,7 +10,7 @@ pub struct Viewport {
 impl TextBuffer {
     pub fn new() -> Self {
         TextBuffer {
-            lines: vec![Vec::new()]
+            lines: vec![Vec::new()],
         }
     }
 
@@ -23,7 +22,7 @@ impl TextBuffer {
         if let Some(line) = self.lines.get_mut(row) {
             if col < line.len() {
                 line[col] = ch
-            }else if col == line.len() {
+            } else if col == line.len() {
                 line.push(ch)
             }
         }
@@ -39,6 +38,14 @@ impl TextBuffer {
         }
     }
 
+    pub fn insert_line(&mut self, row: usize, line: String) {
+        while self.lines.len() <= row {
+            self.lines.push(Vec::new());
+        }
+
+        self.lines[row] = line.chars().collect();
+    }
+
     pub fn delete_char(&mut self, row: usize, col: usize) {
         if let Some(line) = self.lines.get_mut(row) {
             if col < line.len() {
@@ -47,7 +54,7 @@ impl TextBuffer {
         }
     }
 
-    pub fn insert_newline(&mut self, row: usize, col: usize){
+    pub fn insert_newline(&mut self, row: usize, col: usize) {
         if let Some(line) = self.lines.get_mut(row) {
             let remaining: Vec<char> = line.drain(col..).collect();
             self.lines.insert(row + 1, remaining);
@@ -58,6 +65,9 @@ impl TextBuffer {
         self.lines.get(row).map(|l| l.len()).unwrap_or(0)
     }
 
+    pub fn no_more_lines(&self, row: usize) -> bool {
+        self.lines.get(row).is_none()
+    }
 
     pub fn rows(&self) -> &[Vec<char>] {
         &self.lines
@@ -78,5 +88,16 @@ impl TextBuffer {
         }
     }
 
-
+    pub fn to_string(&self) -> String {
+        self.lines
+            .iter()
+            .map(|l| l.iter().collect::<String>())
+            .fold(String::new(), |mut acc, line| {
+                if !acc.is_empty() {
+                    acc.push('\n');
+                }
+                acc.push_str(&line);
+                acc
+            })
+    }
 }
