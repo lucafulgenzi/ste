@@ -29,6 +29,7 @@ struct InputFile {
     file_exists: bool,
     file_name: String,
     file_path: String,
+    file_hash: u64,
 }
 
 impl InputFile {
@@ -37,6 +38,7 @@ impl InputFile {
             file_exists: false,
             file_name: String::new(),
             file_path: String::new(),
+            file_hash: 0,
         }
     }
 }
@@ -100,6 +102,13 @@ impl Editor {
                             .content
                             .delete_char(self.buffer.cursor_row, self.buffer.cursor_col);
                     }
+                    (KeyCode::Tab, _) => {
+                        self.buffer.content.insert_char(
+                            self.buffer.cursor_row,
+                            self.buffer.cursor_col,
+                            '\t',
+                        );
+                    }
                     (KeyCode::Up, _) => {
                         if self.buffer.cursor_row > 0 {
                             let prev_line_len =
@@ -112,25 +121,20 @@ impl Editor {
                     }
                     (KeyCode::Right, _) => self.buffer.cursor_col += 1,
                     (KeyCode::Down, _) => {
-                        // FIXME
-                        // Bug on this lines
-                        // Start with new empty file
-                        // Go down by n and type some char
-                        // Result no printed chars
+                        self.buffer.cursor_row += 1;
+
                         let no_more_lines =
                             self.buffer.content.no_more_lines(self.buffer.cursor_row);
                         if no_more_lines {
                             self.buffer
                                 .content
-                                .insert_newline(self.buffer.cursor_row + 1, self.buffer.cursor_col);
+                                .insert_newline(self.buffer.cursor_row, 0);
                         }
 
-                        let next_line_len =
-                            self.buffer.content.line_len(self.buffer.cursor_row + 1);
-                        if self.buffer.cursor_col > next_line_len {
-                            self.buffer.cursor_col = next_line_len;
+                        let current_line_len = self.buffer.content.line_len(self.buffer.cursor_row);
+                        if self.buffer.cursor_col > current_line_len {
+                            self.buffer.cursor_col = current_line_len;
                         }
-                        self.buffer.cursor_row += 1;
                     }
                     (KeyCode::Left, _) => {
                         if self.buffer.cursor_col > 0 {
@@ -158,6 +162,8 @@ impl Editor {
                 }
             }
         }
+
+        self.clear();
 
         disable_raw_mode().unwrap();
     }
@@ -198,11 +204,13 @@ impl Editor {
     }
 
     fn draw_statusbar(&mut self) {
+        let edit_state = if self.is_file_modified() {"(modified)"} else {""};;
         let status_text = format!(
-            "{} - {}/{} ",
+            "{} - {}/{} {}",
             self.input_file.file_path,
             self.buffer.cursor_row + 1,
-            self.buffer.content.lines_count()
+            self.buffer.content.lines_count(),
+            edit_state
         );
 
         let term_width = crossterm::terminal::size()
@@ -211,11 +219,7 @@ impl Editor {
 
         let padding = " ".repeat(term_width.saturating_sub(status_text.len()));
 
-        let s = format!(
-            "\x1b[30m\x1b[47m{}{}\x1b[0m",
-            status_text,
-            padding
-        );
+        let s = format!("\x1b[30m\x1b[47m{}{}\x1b[0m", status_text, padding);
 
         print!("{}", s);
     }
@@ -230,10 +234,18 @@ impl Editor {
 
         if let Ok(contents) = fs::read_to_string(file_path) {
             self.input_file.file_exists = true;
+
             for (row, line) in contents.lines().enumerate() {
                 self.buffer.content.insert_line(row, line.to_string());
             }
+
+            self.input_file.file_hash = self.buffer.content.calculate_hash();
         }
+    }
+
+    fn is_file_modified(&self) -> bool {
+        let current_hash = self.buffer.content.calculate_hash();
+        current_hash != self.input_file.file_hash
     }
 
     fn save_buffer(&mut self) {
@@ -247,5 +259,7 @@ impl Editor {
             self.buffer.content.to_string().as_bytes(),
         )
         .expect("Couldn't save file");
+
+        self.input_file.file_hash = self.buffer.content.calculate_hash();
     }
 }

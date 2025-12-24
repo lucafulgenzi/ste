@@ -1,5 +1,7 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
 use log::info;
 
+#[derive(Hash)]
 pub struct TextBuffer {
     lines: Vec<Vec<char>>,
 }
@@ -16,10 +18,17 @@ impl TextBuffer {
         }
     }
 
+    pub fn calculate_hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.lines.hash(&mut hasher);
+        hasher.finish()
+    }
 
     pub fn insert_char(&mut self, row: usize, col: usize, ch: char) {
         if ch == '\n' {
             self.insert_newline(row, col);
+        } else if ch == '\t' {
+            // TODO: implement text shift
         } else if let Some(line) = self.lines.get_mut(row) {
             if col <= line.len() {
                 line.insert(col, ch);
@@ -47,21 +56,24 @@ impl TextBuffer {
         if let Some(line) = self.lines.get_mut(row) {
             let remaining: Vec<char> = line.drain(col..).collect();
             self.lines.insert(row + 1, remaining);
+        } else {
+            self.lines.push(Vec::new());
         }
     }
+
+
 
     pub fn line_len(&self, row: usize) -> usize {
         self.lines.get(row).map(|l| l.len()).unwrap_or(0)
     }
 
     pub fn no_more_lines(&self, row: usize) -> bool {
-        self.lines.get(row).is_none()
+        self.lines.len() == row
     }
 
     pub fn visible_rows(&self, viewport: &Viewport) -> &[Vec<char>] {
         let start = viewport.start_row.min(self.lines.len());
         let end = viewport.end_row.min(self.lines.len());
-        info!("Viewport {} {}", start, end);
         &self.lines[start..end]
     }
 
