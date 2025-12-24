@@ -1,3 +1,5 @@
+use log::info;
+
 pub struct TextBuffer {
     lines: Vec<Vec<char>>,
 }
@@ -13,7 +15,7 @@ impl TextBuffer {
             lines: vec![Vec::new()],
         }
     }
-    
+
 
     pub fn insert_char(&mut self, row: usize, col: usize, ch: char) {
         if ch == '\n' {
@@ -59,8 +61,14 @@ impl TextBuffer {
     pub fn visible_rows(&self, viewport: &Viewport) -> &[Vec<char>] {
         let start = viewport.start_row.min(self.lines.len());
         let end = viewport.end_row.min(self.lines.len());
+        info!("Viewport {} {}", start, end);
         &self.lines[start..end]
     }
+
+    pub fn lines_count(&self) -> usize {
+        self.lines.len()
+    }
+
 
     pub fn merge_lines(&mut self, row: usize) {
         if row + 1 < self.lines.len() {
