@@ -1,5 +1,4 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
-use log::info;
 
 #[derive(Hash)]
 pub struct TextBuffer {
@@ -102,5 +101,19 @@ impl TextBuffer {
                 acc.push_str(&line);
                 acc
             })
+    }
+
+    pub fn remove_empty_lines(&mut self, row: usize, clear_end: bool) {
+
+        if !clear_end && row >= self.lines.len() {
+            return;
+        }
+
+        let min_lines = if clear_end { 1 } else { row };
+
+        // Remove empty lines from the end until we find a non-empty line
+        while self.lines.len() > min_lines && self.lines.last().map(|l| l.is_empty()).unwrap_or(false) {
+            self.lines.pop();
+        }
     }
 }

@@ -1,4 +1,3 @@
-extern crate simplelog;
 use crate::editor::Editor;
 use clap::Parser;
 

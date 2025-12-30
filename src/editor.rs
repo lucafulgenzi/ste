@@ -18,6 +18,7 @@ pub struct Buffer {
     cursor_row: usize,
     cursor_col: usize,
     content: TextBuffer,
+    viewport_offset: usize,
 }
 
 pub struct Editor {
@@ -51,19 +52,19 @@ impl Editor {
                 cursor_row: 0,
                 cursor_col: 0,
                 content: TextBuffer::new(),
+                viewport_offset: 0,
             },
         };
 
         editor.parse_input_file(&file_path);
-
         editor
     }
 
     pub fn launch(&mut self) {
         self.clear();
         enable_raw_mode().unwrap();
+        self.draw_buffer_loop();
         loop {
-            self.draw_buffer_loop();
             if let Ok(Event::Key(KeyEvent {
                 code, modifiers, ..
             })) = read()
@@ -118,6 +119,7 @@ impl Editor {
                             }
                             self.buffer.cursor_row -= 1;
                         }
+                        self.buffer.content.remove_empty_lines(self.buffer.cursor_row, false);
                     }
                     (KeyCode::Right, _) => self.buffer.cursor_col += 1,
                     (KeyCode::Down, _) => {
@@ -161,6 +163,7 @@ impl Editor {
                     _ => {}
                 }
             }
+            self.draw_buffer_loop();
         }
 
         self.clear();
@@ -171,9 +174,22 @@ impl Editor {
     /// Loop method for draw edit-buffer view
     fn draw_buffer_loop(&mut self) {
         self.clear();
+        
+        // Scroll viewport to keep cursor visible
+        let terminal_rows = terminal::get_terminal_rows().unwrap();
+        
+        // Scroll down if cursor is below viewport
+        if self.buffer.cursor_row >= self.buffer.viewport_offset + terminal_rows - 1 {
+            self.buffer.viewport_offset = self.buffer.cursor_row.saturating_sub(terminal_rows - 2);
+        }
+        // Scroll up if cursor is above viewport
+        if self.buffer.cursor_row < self.buffer.viewport_offset {
+            self.buffer.viewport_offset = self.buffer.cursor_row;
+        }
+        
         let viewport = Viewport {
-            start_row: 0,
-            end_row: terminal::get_terminal_rows().unwrap_or(terminal::MIN_TERMINAL_ROWS) - 3,
+            start_row: self.buffer.viewport_offset,
+            end_row: self.buffer.viewport_offset + terminal_rows - 1,
         };
 
         let filled_rows = self.buffer.content.visible_rows(&viewport);
@@ -187,7 +203,7 @@ impl Editor {
         }
 
         // Print void rows in viewport
-        let void_rows = viewport.end_row - filled_rows.len();
+        let void_rows = terminal::get_terminal_rows().unwrap() - filled_rows.len() - 1;
         for _ in 0..void_rows {
             print!("~\r\n");
         }
@@ -196,7 +212,10 @@ impl Editor {
 
         execute!(
             io::stdout(),
-            MoveTo(self.buffer.cursor_col as u16, self.buffer.cursor_row as u16)
+            MoveTo(
+                self.buffer.cursor_col as u16,
+                (self.buffer.cursor_row - self.buffer.viewport_offset) as u16
+            )
         )
         .unwrap();
 
@@ -204,7 +223,11 @@ impl Editor {
     }
 
     fn draw_statusbar(&mut self) {
-        let edit_state = if self.is_file_modified() {"(modified)"} else {""};;
+        let edit_state = if self.is_file_modified() {
+            "(modified)"
+        } else {
+            ""
+        };
         let status_text = format!(
             "{} - {}/{} {}",
             self.input_file.file_path,
@@ -250,6 +273,14 @@ impl Editor {
 
     fn save_buffer(&mut self) {
         // TODO: verify clone() speed
+
+        self.buffer.content.remove_empty_lines(self.buffer.cursor_row, true);
+
+        let contents_length = self.buffer.content.lines_count();
+
+        if self.buffer.cursor_row > contents_length {
+            self.buffer.cursor_row = contents_length;
+        }
 
         if !self.input_file.file_exists {
             File::create(self.input_file.file_path.clone()).expect("Couldn't create file");

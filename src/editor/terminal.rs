@@ -2,10 +2,6 @@ use std::io;
 use std::mem;
 use std::os::unix::io::AsRawFd;
 
-
-pub const MIN_TERMINAL_ROWS: usize = 42;
-pub const MIN_TERMINAL_COLS: usize = 32;
-
 #[repr(C)]
 struct TermSize {
     row: u16,
